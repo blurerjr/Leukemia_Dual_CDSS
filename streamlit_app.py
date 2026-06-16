@@ -50,7 +50,7 @@ def load_clinical_assets(task_path_key):
     """
     Safely unpacks model elements depending on the triggered engine route.
     """
-    base_dir = f"{task_path_key}/"
+    base_dir = f"exported_assets/{task_path_key}/"
     
     required_files = [
         'leukemia_rbf_svm_model.pkl', 'gene_minmax_scaler.pkl', 
@@ -101,9 +101,9 @@ with tab_dashboard:
     with col_control:
         st.markdown("#### 📥 Data Intake Panel")
         uploaded_file = st.file_uploader(
-            "Upload Patient Microarray Expression Vector (.csv / .txt)", 
-            type=['csv', 'txt'],
-            help="Accepts comma or tab-separated genomic matrices."
+            "Upload Patient Microarray Expression Matrix File", 
+            type=['csv', 'txt', 'xlsx', 'xls'],
+            help="Accepts Excel Workbooks, Comma-Separated Values, or Tab-Separated genomic text configurations."
         )
         
         st.divider()
@@ -152,27 +152,46 @@ with tab_dashboard:
                     except AttributeError:
                         expected_features = len(engine["scaler"].data_min_)
 
-                    # 2. Initial delimiter sniffing
-                    uploaded_file.seek(0)
-                    initial_read = pd.read_csv(uploaded_file, sep=None, engine='python', nrows=2, header=None)
+                    # 2. Extract extension mapping for router path
+                    file_extension = os.path.splitext(uploaded_file.name)[1].lower()
                     
-                    # 3. Dynamic Header Detection: Check if the last column of row 0 can convert to a number
-                    try:
-                        float(initial_read.iloc[0, -1])
-                        has_header = False
-                    except (ValueError, TypeError):
-                        has_header = True
-                    
-                    # 4. Final Clean Parse
-                    uploaded_file.seek(0)
-                    if has_header:
-                        raw_df = pd.read_csv(uploaded_file, sep=None, engine='python')
+                    # 3. Dynamic Parser Selection (Excel Parsing vs Sniffed Text Separation)
+                    if file_extension in ['.xlsx', '.xls']:
+                        uploaded_file.seek(0)
+                        initial_read = pd.read_excel(uploaded_file, nrows=2, header=None)
+                        
+                        # Dynamic Header Detection: Check if the last column of row 0 can convert to a number
+                        try:
+                            float(initial_read.iloc[0, -1])
+                            has_header = False
+                        except (ValueError, TypeError):
+                            has_header = True
+                        
+                        uploaded_file.seek(0)
+                        if has_header:
+                            raw_df = pd.read_excel(uploaded_file)
+                        else:
+                            raw_df = pd.read_excel(uploaded_file, header=None)
                     else:
-                        raw_df = pd.read_csv(uploaded_file, sep=None, engine='python', header=None)
+                        # CSV / TXT Delimiter-Sniffing Pipeline
+                        uploaded_file.seek(0)
+                        initial_read = pd.read_csv(uploaded_file, sep=None, engine='python', nrows=2, header=None)
+                        
+                        try:
+                            float(initial_read.iloc[0, -1])
+                            has_header = False
+                        except (ValueError, TypeError):
+                            has_header = True
+                        
+                        uploaded_file.seek(0)
+                        if has_header:
+                            raw_df = pd.read_csv(uploaded_file, sep=None, engine='python')
+                        else:
+                            raw_df = pd.read_csv(uploaded_file, sep=None, engine='python', header=None)
 
                     actual_cols = raw_df.shape[1]
                     
-                    # 5. Dimension Safeguard Check
+                    # 4. Dimension Safeguard Check
                     if actual_cols < expected_features:
                         st.error(f"""
                         **⚠️ Structural Dimensionality Mismatch:** The file contains only **{actual_cols}** columns, but this specific model pipeline 
@@ -180,7 +199,7 @@ with tab_dashboard:
                         """)
                         st.stop()
 
-                    # 6. Right-Side Feature Slicing Architecture
+                    # 5. Right-Side Feature Slicing Architecture
                     # Extracts exactly the last N columns containing the raw genomic expression data matrix
                     patient_matrix = raw_df.iloc[:, -expected_features:].values.astype(float)
                     
