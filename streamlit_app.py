@@ -38,7 +38,7 @@ st.markdown("""
         border-radius: 10px;
     }
     </style>
-""", unsafe_with_html=True)
+""", unsafe_allow_html=True)  # <-- FIXED: Changed from unsafe_with_html to unsafe_allow_html
 
 # =====================================================================
 # 2. RUNTIME RESOURCE PIPELINE LOADER
@@ -79,7 +79,7 @@ binary_engine = load_clinical_assets("binary_class")
 multi_engine = load_clinical_assets("multi_class")
 
 # =====================================================================
-# 3. TOP TABS NAVIGATION LAYER (As requested in design layout)
+# 3. TOP TABS NAVIGATION LAYER
 # =====================================================================
 tab_dashboard, tab_info, tab_history = st.tabs([
     "📊 Diagnostic Workspace", 
@@ -147,7 +147,7 @@ with tab_dashboard:
                     <h3 style='margin-top:0; color:#16a34a;'>✅ Binary Analysis Finished</h3>
                     <p style='font-size:1.1rem; color:#1f2937;'>Predicted Clinical State: <strong>{result_text}</strong></p>
                 </div>
-                """, unsafe_with_html=True)
+                """, unsafe_allow_html=True)  # <-- FIXED: Changed parameter name here
                 
                 # Show dynamic telemetry
                 st.markdown("##### 🧬 Active Biomarker Profile Metrics")
@@ -168,77 +168,4 @@ with tab_dashboard:
                 patient_features = raw_df.drop(columns=clean_cols) if clean_cols else raw_df
                 
                 # Inference steps using filtered multi-class subtype configuration matrices
-                patient_log2 = np.log2(patient_features + 1)
-                patient_scaled = multi_engine["scaler"].transform(patient_log2)
-                patient_filtered = patient_scaled[:, multi_engine["genes"]['selected_indices']]
-                
-                prediction_idx = multi_engine["model"].predict(patient_filtered)
-                result_text = multi_engine["encoder"].inverse_transform(prediction_idx)[0]
-                
-                # Clean Output Presentation Card
-                st.markdown(f"""
-                <div class="result-box-multi">
-                    <h3 style='margin-top:0; color:#dc2626;'>🧬 Molecular Subtype Identified</h3>
-                    <p style='font-size:1.1rem; color:#1f2937;'>Identified Subtype Variant: <strong>{result_text}</strong></p>
-                </div>
-                """, unsafe_with_html=True)
-                
-                st.warning("⚠️ *Clinical Context: Omitted general heterogeneous catch-all configurations (B-CELL_ALL).*")
-                
-                # Show dynamic signature map table
-                st.markdown("##### 🧬 Active Biomarker Profile Metrics")
-                biomarker_df = pd.DataFrame({
-                    'Biomarker Probe ID': multi_engine["genes"]['gene_probe_names'],
-                    'Scaled Value': patient_filtered[0]
-                })
-                st.dataframe(biomarker_df, use_container_width=True, height=250)
-                
-            except Exception as e:
-                st.error(f"Execution Error: Ensure matrix alignment match target dimensions. Detailed error: {e}")
-                
-        elif (trigger_binary or trigger_multi) and uploaded_file is None:
-            st.warning("⚠️ Process Halted: You must upload a patient microarray expression matrix `.csv` file before executing predictions.")
-
-# =====================================================================
-# TAB 2: MODEL DETAILED INFORMATIONAL MATRIX
-# =====================================================================
-with tab_info:
-    st.markdown("### 🧬 Architecture Overview & Performance Metadata")
-    st.write("This structural summary is parsed and loaded from static metadata assets inside your system repo.")
-    
-    col_inf_b, col_inf_m = st.columns(2)
-    
-    with col_inf_b:
-        st.markdown("#### 🔳 Binary Model Engine")
-        if binary_engine:
-            m = binary_engine["metrics"]
-            st.markdown(f"""
-            - **Target Pipeline:** AML vs Healthy
-            - **Unbiased Holdout Accuracy:** {m['diagnostic_accuracy_pct']}%
-            - **Macro F1-Score:** {m['macro_f1_score_pct']}%
-            - **Selected Molecular Signature size:** {m['number_of_biomarkers']} target genes
-            """)
-        else:
-            st.caption("No binary configurations found.")
-            
-    with col_inf_m:
-        st.markdown("#### 🔲 Multi-class Subtype Model Engine")
-        if multi_engine:
-            m = multi_engine["metrics"]
-            st.markdown(f"""
-            - **Target Pipeline:** 6 Molecular Variant Pathways
-            - **Unbiased Holdout Accuracy:** {m['diagnostic_accuracy_pct']}%
-            - **Macro Specificity:** {m.get('macro_specificity_pct', 'N/A')}%
-            - **Macro F1-Score:** {m['macro_f1_score_pct']}%
-            - **Selected Molecular Signature size:** {m['number_of_biomarkers']} target genes
-            """)
-        else:
-            st.caption("No multi-class configurations found.")
-
-# =====================================================================
-# TAB 3: AUDIT TRACKING LOGS
-# =====================================================================
-with tab_history:
-    st.markdown("### 📂 System Audit Logs")
-    st.write("Maintains record traces of sessions. Stored inside static repository reference arrays.")
-    st.caption("No sessions recorded during this active initialization frame.")
+                patient_log2 = np.log2(patient_features
