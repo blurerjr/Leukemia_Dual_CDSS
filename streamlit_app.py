@@ -50,7 +50,7 @@ def load_clinical_assets(task_path_key):
     """
     Safely unpacks model elements depending on the triggered engine route.
     """
-    base_dir = f"exported_assets/{task_path_key}/"
+    base_dir = f"{task_path_key}/"
     
     required_files = [
         'leukemia_rbf_svm_model.pkl', 'gene_minmax_scaler.pkl', 
