@@ -49,8 +49,9 @@ st.markdown("""
 def load_clinical_assets(task_path_key):
     """
     Safely unpacks model elements depending on the triggered engine route.
+    Folders are located directly in the root directory beside app.py.
     """
-    base_dir = f"/{task_path_key}/"
+    base_dir = f"{task_path_key}/"  # <-- CORRECTED: Removed exported_assets/
     
     required_files = [
         'leukemia_rbf_svm_model.pkl', 'gene_minmax_scaler.pkl', 
@@ -269,7 +270,7 @@ with tab_info:
             - **Selected Molecular Signature size:** {m['number_of_biomarkers']} target genes
             """)
         else:
-            st.caption("No binary configurations found inside `binary_class/`.")
+            st.caption("No binary configurations found inside `binary_class/` directory.")
             
     with col_inf_m:
         st.markdown("#### 🔲 Multi-class Subtype Model Engine")
@@ -283,7 +284,7 @@ with tab_info:
             - **Selected Molecular Signature size:** {m['number_of_biomarkers']} target genes
             """)
         else:
-            st.caption("No multi-class configurations found inside `multi_class/`.")
+            st.caption("No multi-class configurations found inside `multi_class/` directory.")
 
 # =====================================================================
 # TAB 3: AUDIT TRACKING LOGS
