@@ -51,7 +51,7 @@ def load_clinical_assets(task_path_key):
     Safely unpacks model elements depending on the triggered engine route.
     Folders are located directly in the root directory beside app.py.
     """
-    base_dir = f"{task_path_key}/"  # <-- CORRECTED: Removed exported_assets/
+    base_dir = f"{task_path_key}/"
     
     required_files = [
         'leukemia_rbf_svm_model.pkl', 'gene_minmax_scaler.pkl', 
@@ -131,7 +131,6 @@ with tab_dashboard:
         # State B: Core Predictive Pipeline Execution
         elif (trigger_binary or trigger_multi) and uploaded_file is not None:
             
-            # Select the correct engine based on the button clicked
             if trigger_binary and binary_engine is not None:
                 engine = binary_engine
                 task_label = "Binary Analysis Finished"
@@ -153,70 +152,48 @@ with tab_dashboard:
                     except AttributeError:
                         expected_features = len(engine["scaler"].data_min_)
 
-                    # 2. Extract extension mapping for router path
+                    # 2. Extract extension mapping
                     file_extension = os.path.splitext(uploaded_file.name)[1].lower()
                     
-                    # 3. Dynamic Parser Selection (Excel Parsing vs Sniffed Text Separation)
+                    # 3. Dynamic Parser Selection (Excel vs Sniffed Text)
+                    uploaded_file.seek(0)
                     if file_extension in ['.xlsx', '.xls']:
-                        uploaded_file.seek(0)
-                        initial_read = pd.read_excel(uploaded_file, nrows=2, header=None)
-                        
-                        # Dynamic Header Detection: Check if the last column of row 0 can convert to a number
-                        try:
-                            float(initial_read.iloc[0, -1])
-                            has_header = False
-                        except (ValueError, TypeError):
-                            has_header = True
-                        
-                        uploaded_file.seek(0)
-                        if has_header:
-                            raw_df = pd.read_excel(uploaded_file)
-                        else:
-                            raw_df = pd.read_excel(uploaded_file, header=None)
+                        raw_df = pd.read_excel(uploaded_file)
                     else:
-                        # CSV / TXT Delimiter-Sniffing Pipeline
-                        uploaded_file.seek(0)
-                        initial_read = pd.read_csv(uploaded_file, sep=None, engine='python', nrows=2, header=None)
-                        
-                        try:
-                            float(initial_read.iloc[0, -1])
-                            has_header = False
-                        except (ValueError, TypeError):
-                            has_header = True
-                        
-                        uploaded_file.seek(0)
-                        if has_header:
-                            raw_df = pd.read_csv(uploaded_file, sep=None, engine='python')
-                        else:
-                            raw_df = pd.read_csv(uploaded_file, sep=None, engine='python', header=None)
+                        raw_df = pd.read_csv(uploaded_file, sep=None, engine='python')
 
-                    actual_cols = raw_df.shape[1]
-                    
-                    # 4. Dimension Safeguard Check
-                    if actual_cols < expected_features:
-                        st.error(f"""
-                        **⚠️ Structural Dimensionality Mismatch:** The file contains only **{actual_cols}** columns, but this specific model pipeline 
-                        requires a minimum platform base of **{expected_features}** input features.
-                        """)
-                        st.stop()
+                    # 4. Smart Feature Alignment via Saved Model Estimator Headers
+                    has_valid_feature_names = False
+                    if hasattr(engine["scaler"], "feature_names_in_"):
+                        expected_feature_names = engine["scaler"].feature_names_in_
+                        # Check matching intersection density
+                        matching_cols = [col for col in expected_feature_names if col in raw_df.columns]
+                        if len(matching_cols) >= (expected_features * 0.9):
+                            has_valid_feature_names = True
 
-                    # 5. Right-Side Feature Slicing Architecture
-                    # Extracts exactly the last N columns containing the raw genomic expression data matrix
-                    patient_matrix = raw_df.iloc[:, -expected_features:].values.astype(float)
+                    if has_valid_feature_names:
+                        # Reorder columns to perfectly align with what the scaler expects
+                        patient_features = raw_df[expected_feature_names].astype(float)
+                        st.success(f"🧬 **Gene Mapping Matrix Aligned:** Matched {len(expected_feature_names)} features by Probe IDs.")
+                    else:
+                        # Fallback to right-side positional slice if headers are absent or generic numbers
+                        actual_cols = raw_df.shape[1]
+                        if actual_cols < expected_features:
+                            st.error(f"**⚠️ Structural Dimensionality Mismatch:** File has {actual_cols} columns, but model requires {expected_features}.")
+                            st.stop()
+                        patient_features = raw_df.iloc[:, -expected_features:].astype(float)
+                        st.warning("⚠️ **Positional Alignment Active:** Mismatched or missing header row. Slicing matrix positionally.")
+
+                    patient_matrix = patient_features.values
                     
-                    st.success(f"**Data Integrity Confirmed:** Successfully parsed {patient_matrix.shape[1]} features from the patient file.")
+                    # --- Execution Calculations (Log2 step completely removed to prevent distribution warping) ---
+                    # Step A: Normalize array values using parameters from training data
+                    patient_scaled = engine["scaler"].transform(patient_matrix)
                     
-                    # --- Execution Calculations ---
-                    # Step A: Log2 transformation for variance stabilization
-                    patient_log2 = np.log2(patient_matrix + 1)
-                    
-                    # Step B: Project using weights learned strictly from training data
-                    patient_scaled = engine["scaler"].transform(patient_log2)
-                    
-                    # Step C: Isolate only the pristine ALO-DAT biomarkers
+                    # Step B: Filter features matching ALO-DAT optimized tracking indices
                     patient_filtered = patient_scaled[:, engine["genes"]['selected_indices']]
                     
-                    # Step D: Run RBF SVM Model Inference
+                    # Step C: Execute RBF SVM Inference
                     numeric_class = engine["model"].predict(patient_filtered)
                     text_prediction = engine["encoder"].inverse_transform(numeric_class)[0]
                     
