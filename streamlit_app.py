@@ -116,9 +116,9 @@ with tab_dashboard:
         
         # Context warnings checking configuration states before letting buttons execute
         if trigger_binary and binary_engine is None:
-            st.error("Binary model assets missing inside `exported_assets/binary_class/` directory.")
+            st.error("Binary model assets missing inside `binary_class/` directory.")
         if trigger_multi and multi_engine is None:
-            st.error("Multi-class model assets missing inside `exported_assets/multi_class/` directory.")
+            st.error("Multi-class model assets missing inside `multi_class/` directory.")
 
     with col_display:
         st.markdown("#### 🩺 System Response & Diagnostic Output")
@@ -269,7 +269,7 @@ with tab_info:
             - **Selected Molecular Signature size:** {m['number_of_biomarkers']} target genes
             """)
         else:
-            st.caption("No binary configurations found inside `exported_assets/binary_class/`.")
+            st.caption("No binary configurations found inside `binary_class/`.")
             
     with col_inf_m:
         st.markdown("#### 🔲 Multi-class Subtype Model Engine")
@@ -283,7 +283,7 @@ with tab_info:
             - **Selected Molecular Signature size:** {m['number_of_biomarkers']} target genes
             """)
         else:
-            st.caption("No multi-class configurations found inside `exported_assets/multi_class/`.")
+            st.caption("No multi-class configurations found inside `multi_class/`.")
 
 # =====================================================================
 # TAB 3: AUDIT TRACKING LOGS
