@@ -26,9 +26,9 @@ def load_task_assets(task_type):
     Dynamically maps path nodes based on task selections.
     """
     if task_type == "Multi-class Classification":
-        folder = "exported_assets/multi_class/"
+        folder = "multi_class/"
     else:
-        folder = "exported_assets/binary_class/"
+        folder = "binary_class/"
         
     with open(os.path.join(folder, 'leukemia_rbf_svm_model.pkl'), 'rb') as f:
         model = pickle.load(f)
