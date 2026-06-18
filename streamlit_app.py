@@ -41,13 +41,20 @@ def log_diagnostic_run(patient_name, patient_id, diagnostic_type, result_diagnos
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
     cursor.execute('''
         INSERT INTO diagnostic_logs (timestamp, operator_name, patient_name, patient_id, diagnostic_type, result_diagnosis)
         VALUES (?, ?, ?, ?, ?, ?)
-    ''', ( "DR. J", patient_name.strip().upper(), patient_id.strip().upper(), diagnostic_type, result_diagnosis))
+    ''', (
+        timestamp,  # <-- Added this missing variable
+        "DR. J", 
+        patient_name.strip().upper(), 
+        patient_id.strip().upper(), 
+        diagnostic_type, 
+        result_diagnosis
+    ))
     conn.commit()
     conn.close()
-
 def get_patient_history(patient_id):
     """Retrieves all historical diagnostic runs for a specific patient ID."""
     conn = sqlite3.connect(DB_FILE)
