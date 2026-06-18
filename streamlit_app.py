@@ -9,7 +9,7 @@ from datetime import datetime
 
 # --- PAGE SETUP ---
 st.set_page_config(
-    page_title="Leukemia ALO-DAT - Diagnostic Suite",
+    page_title="Leukemia Cancer Prediction System",
     page_icon="🧬",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -177,7 +177,7 @@ if 'workspace_ready' not in st.session_state:
 # --- SIDEBAR CONTROL CONTROL PANEL ---
 with st.sidebar:
     st.markdown("### 🏥 Authorized Operator")
-    st.info("**Welcome DR. J**\n\nRole: Attending Hematologist")
+    st.info("**Welcome DR. J**\n\nRole: System Operator")
     st.divider()
     
     st.markdown("### ⚙️ Engine Configurations")
@@ -203,8 +203,8 @@ with st.sidebar:
             st.rerun()
 
 # --- MAIN APP HEADER ---
-st.markdown("<h1 class='main-title'>🧬 Leukemia ALO-DAT</h1>", unsafe_allow_html=True)
-st.markdown("<p class='sub-title'>High-Throughput Swarm-Optimized Gene Expression Diagnostic Architecture</p>", unsafe_allow_html=True)
+st.markdown("<h1 class='main-title'>🧬 Leukemia Cancer Prediction System</h1>", unsafe_allow_html=True)
+st.markdown("<p class='sub-title'>ALO-DAT enhanced Gene Expression Diagnostic Architecture</p>", unsafe_allow_html=True)
 
 # --- EXPANDABLE VALIDATION BENCHMARK METRICS ---
 with st.expander("📊 View Pipeline Performance Signatures (Independent Validation Datasets)", expanded=False):
@@ -320,7 +320,7 @@ PATIENT NAME: {st.session_state.active_patient_name.upper()}
 PATIENT MRN/ID: {st.session_state.active_patient_id.upper()}
 ------------------------------------------------------
 DIAGNOSTIC PIPELINE RUN: {model_choice}
-ALGORITHM: Swarm Optimized (ALO-DAT) + RBF-SVM Engine
+ALGORITHM: Enhanced ALO-DAT + RBF-SVM Engine
 ------------------------------------------------------
 VERDICT DETERMINATION: {primary_prediction}
 STATUS: Confirmed & Written into Permanent On-Device Logs
