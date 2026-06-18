@@ -1,0 +1,8 @@
+{
+    "diagnostic_accuracy_pct": 95.24,
+    "macro_precision_pct": 97.22,
+    "macro_recall_sens_pct": 93.98,
+    "macro_specificity_pct": 98.96,
+    "macro_f1_score_pct": 95.12,
+    "number_of_biomarkers": 319
+}
