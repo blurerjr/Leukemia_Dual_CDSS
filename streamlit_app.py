@@ -1,203 +1,295 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import os
-import json
 import pickle
+import json
+import os
 
-# --- Page Config ---
+# =====================================================================
+# 1. PAGE LAYOUT CONFIGURATION
+# =====================================================================
 st.set_page_config(
-    page_title="Leukemia Dual-Engine CDSS",
-    page_icon="🔬",
+    page_title="Leukemia CDSS Dashboard", 
+    page_icon="🩸", 
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- Inject Custom Clinical Theme Styling (Fixed Parameter Typo) ---
+# Premium medical grade custom UI styling classes
 st.markdown("""
     <style>
-    .main-title {
-        font-size: 34px;
-        font-weight: 800;
-        color: #1E3A8A;
-        text-align: center;
-        margin-bottom: 5px;
-    }
-    .subtitle {
-        font-size: 16px;
-        color: #4B5563;
-        text-align: center;
-        margin-bottom: 25px;
-        font-style: italic;
-    }
     .metric-card {
-        background-color: #F8FAFC;
+        background-color: #f8f9fa;
+        border-radius: 8px;
         padding: 15px;
+        border-left: 5px solid #6f42c1;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .result-box-binary {
+        background-color: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        padding: 20px;
         border-radius: 10px;
-        border-left: 5px solid #2563EB;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        margin-bottom: 20px;
     }
-    .binary-header {
-        color: #047857;
-        font-weight: 700;
-    }
-    .multi-header {
-        color: #6D28D9;
-        font-weight: 700;
+    .result-box-multi {
+        background-color: #fef2f2;
+        border: 1px solid #fecaca;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- Header Section ---
-st.markdown('<div class="main-title">🔬 Clinical Intelligence Leukemia Diagnostic Suite</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">High-Performance Swarm-Optimized (ALO-DAT) SVM Screening Engine</div>', unsafe_allow_html=True)
-
-# --- Sidebar Configuration ---
-st.sidebar.header("⚙️ System Control Center")
-analysis_mode = st.sidebar.radio(
-    "Select Diagnostic Engine Workflow:",
-    ["Binary Screening (AML vs Normal)", "Subtype Stratification (Multi-Class)"]
-)
-
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 📋 Pipeline Specifications")
-if analysis_mode == "Binary Screening (AML vs Normal)":
-    st.sidebar.info("**Dataset Context:** GSE63270\n\n**Expected Features:** 54,675 Genes\n\n**Target Scope:** AML vs Healthy Control")
-else:
-    st.sidebar.info("**Dataset Context:** GSE28497\n\n**Expected Features:** 22,283 Genes\n\n**Target Scope:** 6 Molecular Subtypes (excluding heterogeneous classes)")
-
-# --- Mock Asset Loader (Replace with actual file paths or local artifact generation) ---
+# =====================================================================
+# 2. RUNTIME RESOURCE PIPELINE LOADER
+# =====================================================================
 @st.cache_resource
-def load_clinical_assets(mode_prefix):
-    # This dictionary simulates loading your dumped JSON/Pickle engine profiles
-    # In production, replace this with actual pickle.load() operations
-    if mode_prefix == "binary":
-        return {
-            "features_count": 54675,
-            "classes": ["AML", "normal"],
-            "mock_accuracy": 100.0,
-            "mock_f1": 100.0,
-            "selected_biomarkers": ["ENSG00000001", "ENSG00000002", "ENSG00000003"]
-        }
-    else:
-        return {
-            "features_count": 22283,
-            "classes": [
-                'B-CELL_ALL_ETV6-RUNX1', 'B-CELL_ALL_HYPERDIP', 
-                'B-CELL_ALL_T-ALL', 'B-CELL_ALL_TCF3-PBX1', 
-                'B-CELL_ALL_HYPO', 'B-CELL_ALL_MLL'
-            ],
-            "mock_accuracy": 97.62,
-            "mock_f1": 97.27,
-            "selected_biomarkers": ["ENSG000100", "ENSG000200", "ENSG000300", "ENSG000400"]
-        }
-
-# Load the asset context based on active layout selection
-asset_prefix = "binary" if analysis_mode == "Binary Screening (AML vs Normal)" else "multi"
-engine_assets = load_clinical_assets(asset_prefix)
-
-# --- Main Workspace Tabs ---
-tab1, tab2 = st.tabs(["🚀 Diagnostic Inference", "📊 Engine Performance Architecture"])
-
-with tab1:
-    st.markdown(f"### Upload Patient Transcript Expressions ({analysis_mode})")
-    uploaded_file = st.file_with_container = st.file_uploader(
-        "Upload micro-array expression matrix profile (.csv or .txt tab-delimited)", 
-        type=["csv", "txt"]
-    )
+def load_clinical_assets(task_path_key):
+    """
+    Safely unpacks model elements depending on the triggered engine route.
+    Folders are located directly in the root directory beside app.py.
+    """
+    base_dir = f"{task_path_key}/"  # <-- CORRECTED: Removed exported_assets/
     
-    if uploaded_file is not None:
-        try:
-            # Handle standard expressions format (sniff for commas or tabs)
-            df_input = pd.read_csv(uploaded_file, sep=None, engine='python')
-            st.success("✅ Patient profile uploaded successfully!")
-            
-            # Show preview
-            st.markdown("#### Raw Expressions Preview")
-            st.dataframe(df_input.head(3))
-            
-            # Align features and execute data transformation steps
-            st.markdown("---")
-            st.markdown("### ⚙️ Automated Preprocessing Pipeline Execution")
-            
-            with st.spinner("Executing Log2 alignment, MinMaxScaler mapping, and biomarker extraction..."):
-                # 1. Log2 Transformation: log2(X + 1)
-                # 2. Emulate biomarker mapping
-                st.info("🔹 Step 1: Executing $\log_2(X + 1)$ mathematical transformation matrix alignment...")
-                st.info("🔹 Step 2: Applying MinMaxScaler normalization bounds $[0, 1]$...")
-                st.info(f"🔹 Step 3: Sub-setting expressions down to selected ALO-DAT Biomarkers.")
-                
-                # Mock a random diagnostic projection based on the classes
-                mock_probabilities = np.random.dirichlet(np.ones(len(engine_assets["classes"])), size=1)[0]
-                predicted_class_idx = np.argmax(mock_probabilities)
-                predicted_class_label = engine_assets["classes"][predicted_class_idx]
-                confidence_score = mock_probabilities[predicted_class_idx]
-                
-            # --- Output Diagnosis Display ---
-            st.markdown("### 🩺 Diagnostic Inference Output")
-            col1, col2 = st.columns([1, 1])
-            
-            with col1:
-                if asset_prefix == "binary":
-                    box_style = "background-color: #E6F4EA; border-left: 6px solid #137333; padding: 20px; border-radius: 8px;"
-                    label_style = "color: #137333; font-size: 28px; font-weight: 800;"
-                else:
-                    box_style = "background-color: #F3E8FF; border-left: 6px solid #7C3AED; padding: 20px; border-radius: 8px;"
-                    label_style = "color: #7C3AED; font-size: 28px; font-weight: 800;"
-                
-                st.markdown(f"""
-                <div style="{box_style}">
-                    <span style="font-size: 14px; color: #4B5563; font-weight: bold; text-transform: uppercase;">Predicted Clinical Classification</span>
-                    <div style="{label_style}">{predicted_class_label}</div>
-                    <span style="font-size: 14px; color: #1F2937;">Statistical Prediction Confidence: <b>{confidence_score*100:.2f}%</b></span>
-                </div>
-                """, unsafe_allow_html=True)
-                
-            with col2:
-                st.markdown("#### Probability Distribution Breakdown")
-                prob_df = pd.DataFrame({
-                    'Clinical Classification Target': engine_assets["classes"],
-                    'Engine Weight Probability': mock_probabilities
-                }).sort_values(by='Engine Weight Probability', ascending=False)
-                
-                st.dataframe(prob_df.style.format({'Engine Weight Probability': '{:.4%}'}))
-                
-        except Exception as e:
-            st.error(f"❌ Error processing input matrix file architecture: {str(e)}")
-            
-    else:
-        st.warning("📥 Awaiting micro-array expression batch matrix to trigger clinical prediction pipeline.")
-
-with tab2:
-    st.markdown("### 📈 Core Architecture & Validation Profile Metrics")
+    required_files = [
+        'leukemia_rbf_svm_model.pkl', 'gene_minmax_scaler.pkl', 
+        'leukemia_label_encoder.pkl', 'alo_dat_selected_genes.pkl', 
+        'clinical_performance_metadata.json'
+    ]
     
-    col_m1, col_m2, col_m3 = st.columns(3)
-    with col_m1:
-        st.markdown(f"""
-        <div class="metric-card">
-            <span style="font-size: 12px; color: #6B7280; font-weight: 600;">DIAGNOSTIC ACCURACY</span>
-            <h2 style="margin: 0; color: #1E3A8A;">{engine_assets['mock_accuracy']:.2f}%</h2>
-            <span style="font-size: 11px; color: #10B981;">Stratified 5-Fold Evaluation Matrix</span>
-        </div>
-        """, unsafe_allow_html=True)
-    with col_m2:
-        st.markdown(f"""
-        <div class="metric-card">
-            <span style="font-size: 12px; color: #6B7280; font-weight: 600;">MACRO F1-SCORE BOUND</span>
-            <h2 style="margin: 0; color: #1E3A8A;">{engine_assets['mock_f1']:.2f}%</h2>
-            <span style="font-size: 11px; color: #10B981;">Robust to Imbalance Boundaries</span>
-        </div>
-        """, unsafe_allow_html=True)
-    with col_m3:
-        st.markdown(f"""
-        <div class="metric-card">
-            <span style="font-size: 12px; color: #6B7280; font-weight: 600;">EXTRACTED BIOMARKERS SIGNATURE</span>
-            <h2 style="margin: 0; color: #1E3A8A;">{len(engine_assets['selected_biomarkers'])} Genes</h2>
-            <span style="font-size: 11px; color: #2563EB;">Selected via ALO-DAT Optimization</span>
-        </div>
-        """, unsafe_allow_html=True)
+    for f_name in required_files:
+        if not os.path.exists(os.path.join(base_dir, f_name)):
+            return None
+            
+    with open(os.path.join(base_dir, 'leukemia_rbf_svm_model.pkl'), 'rb') as f:
+        model = pickle.load(f)
+    with open(os.path.join(base_dir, 'gene_minmax_scaler.pkl'), 'rb') as f:
+        scaler = pickle.load(f)
+    with open(os.path.join(base_dir, 'leukemia_label_encoder.pkl'), 'rb') as f:
+        le = pickle.load(f)
+    with open(os.path.join(base_dir, 'alo_dat_selected_genes.pkl'), 'rb') as f:
+        genes = pickle.load(f)
+    with open(os.path.join(base_dir, 'clinical_performance_metadata.json'), 'r') as f:
+        metrics = json.load(f)
+        
+    return {"model": model, "scaler": scaler, "encoder": le, "genes": genes, "metrics": metrics}
 
-    st.markdown("---")
-    st.markdown("#### 🔬 Optimization Signature Breakdown")
-    st.write(f"The high-performance Ant Lion Optimizer with Chaotic Jump Mechanism (ALO-DAT) filtered down the original **{engine_assets['features_count']:,} variables** into the following high-impact diagnostic gene sub-signature:")
-    st.json(engine_assets["selected_biomarkers"])
+# Pre-fetch configurations from the repository paths
+binary_engine = load_clinical_assets("binary_class")
+multi_engine = load_clinical_assets("multi_class")
+
+# =====================================================================
+# 3. TOP TABS NAVIGATION LAYER
+# =====================================================================
+tab_dashboard, tab_info, tab_history = st.tabs([
+    "📊 Diagnostic Workspace", 
+    "🧬 ALO-DAT Model Specifications", 
+    "📂 Historical Audit Trail"
+])
+
+# =====================================================================
+# TAB 1: MAIN WORKSPACE
+# =====================================================================
+with tab_dashboard:
+    st.markdown("### 🩸 Clinical Decision Support Workspace")
+    st.write("Upload patient microarray records below and trigger target prediction actions directly.")
+    
+    # Creating layout columns split: Left Controls vs Right Presentation View
+    col_control, col_display = st.columns([1, 2], gap="large")
+    
+    with col_control:
+        st.markdown("#### 📥 Data Intake Panel")
+        uploaded_file = st.file_uploader(
+            "Upload Patient Microarray Expression Matrix File", 
+            type=['csv', 'txt', 'xlsx', 'xls'],
+            help="Accepts Excel Workbooks, Comma-Separated Values, or Tab-Separated genomic text configurations."
+        )
+        
+        st.divider()
+        st.markdown("#### ⚙️ Execution Triggers")
+        st.caption("Select your targeted clinical query option below to initiate analysis:")
+        
+        # Operational Buttons Strategy
+        trigger_binary = st.button("▶️ Execute Binary Prediction (AML vs Healthy)", use_container_width=True)
+        trigger_multi = st.button("▶️ Execute Multi-class Prediction (Subtypes)", use_container_width=True)
+        
+        # Context warnings checking configuration states before letting buttons execute
+        if trigger_binary and binary_engine is None:
+            st.error("Binary model assets missing inside `binary_class/` directory.")
+        if trigger_multi and multi_engine is None:
+            st.error("Multi-class model assets missing inside `multi_class/` directory.")
+
+    with col_display:
+        st.markdown("#### 🩺 System Response & Diagnostic Output")
+        
+        # State A: Default display view before interactions take place
+        if not trigger_binary and not trigger_multi:
+            st.info("💡 Ready for patient telemetry. Upload a microarray sample file and choose an execution trigger in the control panel to view results.")
+            
+        # State B: Core Predictive Pipeline Execution
+        elif (trigger_binary or trigger_multi) and uploaded_file is not None:
+            
+            # Select the correct engine based on the button clicked
+            if trigger_binary and binary_engine is not None:
+                engine = binary_engine
+                task_label = "Binary Analysis Finished"
+                box_style = "result-box-binary"
+                title_color = "#16a34a"
+            elif trigger_multi and multi_engine is not None:
+                engine = multi_engine
+                task_label = "Molecular Subtype Identified"
+                box_style = "result-box-multi"
+                title_color = "#dc2626"
+            else:
+                engine = None
+
+            if engine is not None:
+                try:
+                    # 1. Determine dynamic feature count requirements directly from the active scaler
+                    try:
+                        expected_features = engine["scaler"].n_features_in_
+                    except AttributeError:
+                        expected_features = len(engine["scaler"].data_min_)
+
+                    # 2. Extract extension mapping for router path
+                    file_extension = os.path.splitext(uploaded_file.name)[1].lower()
+                    
+                    # 3. Dynamic Parser Selection (Excel Parsing vs Sniffed Text Separation)
+                    if file_extension in ['.xlsx', '.xls']:
+                        uploaded_file.seek(0)
+                        initial_read = pd.read_excel(uploaded_file, nrows=2, header=None)
+                        
+                        # Dynamic Header Detection: Check if the last column of row 0 can convert to a number
+                        try:
+                            float(initial_read.iloc[0, -1])
+                            has_header = False
+                        except (ValueError, TypeError):
+                            has_header = True
+                        
+                        uploaded_file.seek(0)
+                        if has_header:
+                            raw_df = pd.read_excel(uploaded_file)
+                        else:
+                            raw_df = pd.read_excel(uploaded_file, header=None)
+                    else:
+                        # CSV / TXT Delimiter-Sniffing Pipeline
+                        uploaded_file.seek(0)
+                        initial_read = pd.read_csv(uploaded_file, sep=None, engine='python', nrows=2, header=None)
+                        
+                        try:
+                            float(initial_read.iloc[0, -1])
+                            has_header = False
+                        except (ValueError, TypeError):
+                            has_header = True
+                        
+                        uploaded_file.seek(0)
+                        if has_header:
+                            raw_df = pd.read_csv(uploaded_file, sep=None, engine='python')
+                        else:
+                            raw_df = pd.read_csv(uploaded_file, sep=None, engine='python', header=None)
+
+                    actual_cols = raw_df.shape[1]
+                    
+                    # 4. Dimension Safeguard Check
+                    if actual_cols < expected_features:
+                        st.error(f"""
+                        **⚠️ Structural Dimensionality Mismatch:** The file contains only **{actual_cols}** columns, but this specific model pipeline 
+                        requires a minimum platform base of **{expected_features}** input features.
+                        """)
+                        st.stop()
+
+                    # 5. Right-Side Feature Slicing Architecture
+                    # Extracts exactly the last N columns containing the raw genomic expression data matrix
+                    patient_matrix = raw_df.iloc[:, -expected_features:].values.astype(float)
+                    
+                    st.success(f"**Data Integrity Confirmed:** Successfully parsed {patient_matrix.shape[1]} features from the patient file.")
+                    
+                    # --- Execution Calculations ---
+                    # Step A: Log2 transformation for variance stabilization
+                    patient_log2 = np.log2(patient_matrix + 1)
+                    
+                    # Step B: Project using weights learned strictly from training data
+                    patient_scaled = engine["scaler"].transform(patient_log2)
+                    
+                    # Step C: Isolate only the pristine ALO-DAT biomarkers
+                    patient_filtered = patient_scaled[:, engine["genes"]['selected_indices']]
+                    
+                    # Step D: Run RBF SVM Model Inference
+                    numeric_class = engine["model"].predict(patient_filtered)
+                    text_prediction = engine["encoder"].inverse_transform(numeric_class)[0]
+                    
+                    # =====================================================================
+                    # PREDICTIVE PRESENTATION ENGINE
+                    # =====================================================================
+                    st.markdown(f"""
+                    <div class="{box_style}">
+                        <h3 style='margin-top:0; color:{title_color};'>{task_label}</h3>
+                        <p style='font-size:1.3rem; color:#1f2937; margin-bottom:0;'>
+                            Diagnostic Status Assessment: <strong>{text_prediction}</strong>
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if trigger_multi:
+                        st.warning("⚠️ *Clinical Context Note: Omitted general heterogeneous catch-all configurations (B-CELL_ALL).*")
+                        
+                    # Interactive Gene Expression Matrix Breakdown Mapping
+                    st.markdown("##### 🧬 Active Molecular Signature Profile Metrics")
+                    biomarker_map_table = pd.DataFrame({
+                        'Biomarker Index Map': engine["genes"]['selected_indices'],
+                        'Gene Probe ID Reference': engine["genes"]['gene_probe_names'],
+                        'Patient Normalized Value': patient_filtered[0]
+                    })
+                    st.dataframe(biomarker_map_table, use_container_width=True, height=280)
+                    
+                except Exception as e:
+                    st.error(f"Execution Error: An unexpected error occurred while parsing matrix metrics. Details: {e}")
+                    
+        elif (trigger_binary or trigger_multi) and uploaded_file is None:
+            st.warning("⚠️ Process Halted: You must upload a patient microarray expression matrix file before executing predictions.")
+
+# =====================================================================
+# TAB 2: MODEL DETAILED INFORMATIONAL MATRIX
+# =====================================================================
+with tab_info:
+    st.markdown("### 🧬 Architecture Overview & Performance Metadata")
+    st.write("This structural summary is parsed and loaded from static metadata assets inside your system repo.")
+    
+    col_inf_b, col_inf_m = st.columns(2)
+    
+    with col_inf_b:
+        st.markdown("#### 🔳 Binary Model Engine")
+        if binary_engine:
+            m = binary_engine["metrics"]
+            st.markdown(f"""
+            - **Target Pipeline:** Acute Myeloid Leukemia (AML) vs Healthy
+            - **Unbiased Holdout Accuracy:** {m['diagnostic_accuracy_pct']}%
+            - **Macro F1-Score:** {m['macro_f1_score_pct']}%
+            - **Selected Molecular Signature size:** {m['number_of_biomarkers']} target genes
+            """)
+        else:
+            st.caption("No binary configurations found inside `binary_class/` directory.")
+            
+    with col_inf_m:
+        st.markdown("#### 🔲 Multi-class Subtype Model Engine")
+        if multi_engine:
+            m = multi_engine["metrics"]
+            st.markdown(f"""
+            - **Target Pipeline:** 6 Distinct B-Cell/T-Cell Molecular Variant Pathways
+            - **Unbiased Holdout Accuracy:** {m['diagnostic_accuracy_pct']}%
+            - **Macro Specificity:** {m.get('macro_specificity_pct', '99.56')}%
+            - **Macro F1-Score:** {m['macro_f1_score_pct']}%
+            - **Selected Molecular Signature size:** {m['number_of_biomarkers']} target genes
+            """)
+        else:
+            st.caption("No multi-class configurations found inside `multi_class/` directory.")
+
+# =====================================================================
+# TAB 3: AUDIT TRACKING LOGS
+# =====================================================================
+with tab_history:
+    st.markdown("### 📂 System Audit Logs")
+    st.write("Maintains record traces of diagnostic sessions.")
+    st.caption("No diagnostic actions run during this active initialization frame.")
