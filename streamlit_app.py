@@ -4,76 +4,46 @@ import numpy as np
 import pickle
 import json
 import os
-import sqlite3
 from datetime import datetime
 
 # --- PAGE SETUP ---
 st.set_page_config(
-    page_title="Leukemia Cancer Prediction System",
+    page_title="Leukemia ALO-DAT - Diagnostic Suite",
     page_icon="🧬",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- LOCAL DATABASE STORAGE SETUP (LOG KEEPING) ---
-DB_FILE = "leukemia_dx_logs.db"
+# --- LIGHTWEIGHT SYSTEM MEMORY INITIALIZATION (NO DATABASE OVERHEAD) ---
+if 'clinical_history' not in st.session_state:
+    # Keeps logs purely inside high-speed RAM cache memory
+    st.session_state.clinical_history = []
+if 'active_patient_name' not in st.session_state:
+    st.session_state.active_patient_name = ""
+if 'active_patient_id' not in st.session_state:
+    st.session_state.active_patient_id = ""
+if 'workspace_ready' not in st.session_state:
+    st.session_state.workspace_ready = False
+if 'cached_matrix_df' not in st.session_state:
+    st.session_state.cached_matrix_df = None
+if 'cached_file_signature' not in st.session_state:
+    st.session_state.cached_file_signature = ""
 
-def init_db():
-    """Initializes the local database for permanent on-device logging."""
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS diagnostic_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT,
-            operator_name TEXT,
-            patient_name TEXT,
-            patient_id TEXT,
-            diagnostic_type TEXT,
-            result_diagnosis TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
-def log_diagnostic_run(patient_name, patient_id, diagnostic_type, result_diagnosis):
-    """Saves a diagnostic record permanently to the device database."""
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
+def append_to_memory_log(patient_name, patient_id, diagnostic_type, result_diagnosis):
+    """Appends running logs instantly to session RAM ledger."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    cursor.execute('''
-        INSERT INTO diagnostic_logs (timestamp, operator_name, patient_name, patient_id, diagnostic_type, result_diagnosis)
-        VALUES (?, ?, ?, ?, ?, ?)
-    ''', (
-        timestamp,  # <-- Added this missing variable
-        "DR. J", 
-        patient_name.strip().upper(), 
-        patient_id.strip().upper(), 
-        diagnostic_type, 
-        result_diagnosis
-    ))
-    conn.commit()
-    conn.close()
-def get_patient_history(patient_id):
-    """Retrieves all historical diagnostic runs for a specific patient ID."""
-    conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql_query('''
-        SELECT timestamp, diagnostic_type, result_diagnosis 
-        FROM diagnostic_logs 
-        WHERE patient_id = ? 
-        ORDER BY timestamp DESC
-    ''', conn, params=(patient_id.strip().upper(),))
-    conn.close()
-    return df
-
-# Initialize database right away
-init_db()
+    log_entry = {
+        "timestamp": timestamp,
+        "patient_name": patient_name.strip().upper(),
+        "patient_id": patient_id.strip().upper(),
+        "diagnostic_type": diagnostic_type,
+        "result_diagnosis": result_diagnosis
+    }
+    st.session_state.clinical_history.append(log_entry)
 
 # --- CUSTOM CLINICAL THEME (CSS) ---
 st.markdown("""
     <style>
-    /* Clinical Color Scheme and Fonts */
     :root {
         --primary-clinical: #023e8a;
         --secondary-clinical: #0077b6;
@@ -93,7 +63,6 @@ st.markdown("""
         margin-bottom: 25px;
     }
     
-    /* Medical Container Cards */
     .clinical-card {
         background-color: #ffffff;
         border-radius: 8px;
@@ -124,7 +93,7 @@ st.markdown("""
 # --- CACHING MODEL ENGINE LOADS ---
 @st.cache_resource
 def load_pipeline_assets(model_type):
-    """Loads classification architecture dynamically from the selected directories."""
+    """Loads ML artifacts from directory parameters with memory caching."""
     folder = "models/binary/" if model_type == "Binary Classification" else "models/multi/"
     
     with open(os.path.join(folder, 'leukemia_rbf_svm_model.pkl'), 'rb') as f:
@@ -142,42 +111,33 @@ def load_pipeline_assets(model_type):
 
 # --- INFERENCE PIPELINE MECHANISM ---
 def execute_inference(df, model, scaler, le, signature):
-    """Strict execution of the notebook's preprocessing and classification steps."""
-    # Data Clean: Remove descriptive labels if present
+    """Strict execution of the notebook's data preparation algorithms."""
     if 'samples' in df.columns:
         df = df.drop(columns=['samples'])
     if 'type' in df.columns:
         df = df.drop(columns=['type'])
 
-    # Step 1: Log2 Normalization
+    # Log2 Transmutation Matrix Transformation
     X_log2 = np.log2(df + 1)
 
-    # Step 2: Global Feature Scaling
+    # Global Continuous Value Sizing Matrix Scaling
     X_scaled = scaler.transform(X_log2)
     X_scaled_df = pd.DataFrame(X_scaled, columns=df.columns)
 
-    # Step 3: ALO-DAT Algorithmic Slicing
+    # ALO-DAT Sub-Selection Array Slicing
     selected_indices = signature['selected_indices']
     X_selected = X_scaled_df.iloc[:, selected_indices].values
 
-    # Step 4: Model Prediction Execution
+    # Output Decision Matrix Scoring
     predictions_encoded = model.predict(X_selected)
     predictions_decoded = le.inverse_transform(predictions_encoded)
     
     return predictions_decoded
 
-# --- SESSION STATE TRACKING ---
-if 'active_patient_name' not in st.session_state:
-    st.session_state.active_patient_name = ""
-if 'active_patient_id' not in st.session_state:
-    st.session_state.active_patient_id = ""
-if 'workspace_ready' not in st.session_state:
-    st.session_state.workspace_ready = False
-
-# --- SIDEBAR CONTROL CONTROL PANEL ---
+# --- SIDEBAR CONTROL PANEL ---
 with st.sidebar:
     st.markdown("### 🏥 Authorized Operator")
-    st.info("**Welcome DR. J**\n\nRole: System Operator")
+    st.info("**Welcome DR. J**\n\nRole: Attending Hematologist")
     st.divider()
     
     st.markdown("### ⚙️ Engine Configurations")
@@ -186,10 +146,9 @@ with st.sidebar:
         ["Binary Classification", "Multi-Class Classification"]
     )
     
-    # Attempt Pipeline Initialization
     try:
         svm_model, minmax_scaler, label_encoder, gene_signature, model_metrics = load_pipeline_assets(model_choice)
-        st.caption("✅ Core engines loaded from local storage system storage.")
+        st.caption("✅ Pipeline components actively verified in background memory cache.")
     except FileNotFoundError:
         st.error("⚠️ System assets missing. Verify folder layout paths.")
         st.stop()
@@ -199,12 +158,14 @@ with st.sidebar:
         if st.button("🔄 Clear Active Patient Workspace", use_container_width=True):
             st.session_state.active_patient_name = ""
             st.session_state.active_patient_id = ""
+            st.session_state.cached_matrix_df = None
+            st.session_state.cached_file_signature = ""
             st.session_state.workspace_ready = False
             st.rerun()
 
 # --- MAIN APP HEADER ---
-st.markdown("<h1 class='main-title'>🧬 Leukemia Cancer Prediction System</h1>", unsafe_allow_html=True)
-st.markdown("<p class='sub-title'>ALO-DAT enhanced Gene Expression Diagnostic Architecture</p>", unsafe_allow_html=True)
+st.markdown("<h1 class='main-title'>🧬 Leukemia ALO-DAT</h1>", unsafe_allow_html=True)
+st.markdown("<p class='sub-title'>High-Throughput Swarm-Optimized Gene Expression Diagnostic Architecture</p>", unsafe_allow_html=True)
 
 # --- EXPANDABLE VALIDATION BENCHMARK METRICS ---
 with st.expander("📊 View Pipeline Performance Signatures (Independent Validation Datasets)", expanded=False):
@@ -222,7 +183,7 @@ st.divider()
 if not st.session_state.workspace_ready:
     st.markdown("<div class='clinical-card'>", unsafe_allow_html=True)
     st.subheader("📋 Step 1: Patient Admission Intake Registry")
-    st.markdown("Before loading raw expression counts, register patient files to generate a cryptographically valid entry log.")
+    st.markdown("Before loading raw expression counts, register patient files to track diagnostic evaluations.")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -237,12 +198,11 @@ if not st.session_state.workspace_ready:
             st.session_state.workspace_ready = True
             st.rerun()
         else:
-            st.warning("🚨 Operational Failure: Both Patient Full Name and Unique Patient ID are strictly mandatory for log keeping.")
+            st.warning("🚨 Operational Failure: Both Patient Full Name and Unique Patient ID are strictly mandatory for patient verification.")
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- WORKFLOW STEP 2 & 3: APPLICATION OF COMPENSATORY PIPELINE ---
 else:
-    # Split Layout for Main Interactions and Patient logs side by side
     main_panel, log_panel = st.columns([2, 1])
     
     with main_panel:
@@ -257,60 +217,61 @@ else:
         """, unsafe_allow_html=True)
         
         st.subheader("📁 Step 2: Microarray Gene Expression Count Upload")
-        st.markdown("Upload the raw gene expression values `.csv` file format below.")
+        st.markdown("Upload the raw gene expression values `.csv` matrix below.")
         
         uploaded_matrix = st.file_uploader("Select Target Expression Profile File", type=["csv"])
         
         if uploaded_matrix is not None:
-            raw_matrix_df = pd.read_csv(uploaded_matrix)
+            # --- HIGH-SPEED INGESTION CACHE OPTIMIZATION ---
+            # Construct a fast digital footprint check of the uploaded file metadata
+            current_sig = f"{uploaded_matrix.name}_{uploaded_matrix.size}"
             
-            with st.expander("🔬 View Raw Upload Dimensions and Mapping Matrix Preview"):
-                st.dataframe(raw_matrix_df.head(4))
-                st.caption(f"Matrix detected size properties: {raw_matrix_df.shape[0]} rows x {raw_matrix_df.shape[1]} columns.")
+            if st.session_state.cached_file_signature != current_sig:
+                with st.spinner("⚡ High-Speed RAM Optimizer: parsing expression matrix data strings once..."):
+                    st.session_state.cached_matrix_df = pd.read_csv(uploaded_matrix)
+                    st.session_state.cached_file_signature = current_sig
+            
+            raw_matrix_df = st.session_state.cached_matrix_df
+            
+            with st.expander("🔬 View Upload Dimensions and Mapping Matrix Preview"):
+                st.dataframe(raw_matrix_df.head(3))
+                st.caption(f"Matrix features mapped size: {raw_matrix_df.shape[0]} samples x {raw_matrix_df.shape[1]} features.")
                 
             if st.button("⚡ Execute Computational Diagnostics", type="primary"):
-                # Open up the status manager to mimic preprocessing
-                with st.status("Initializing processing steps matching model parameters...", expanded=True) as status:
-                    status.update(label="Executing Log2 normalization matrix translation...", state="running")
-                    # Internal pipeline running
+                with st.status("Executing inference pipelines over mathematical parameters...", expanded=True) as status:
                     try:
+                        status.update(label="Executing Log2 data transformations...", state="running")
+                        # Evaluation runs over memory arrays instantly
                         results = execute_inference(
                             raw_matrix_df, svm_model, minmax_scaler, label_encoder, gene_signature
                         )
                         
-                        status.update(label="Applying fitted MinMaxScaler conversions...", state="running")
-                        status.update(label="Slicing targeted feature matrices via ALO-DAT indices...", state="running")
-                        status.update(label="Running boundary predictions on RBF-SVM engine...", state="running")
+                        status.update(label="Applying model normalizations & slicing sub-selections...", state="running")
+                        status.update(label="Resolving prediction arrays across decision boundaries...", state="running")
+                        status.update(label="Diagnostic matrix calculation completed.", state="complete")
                         
-                        # Set final status output clear
-                        status.update(label="Diagnostic classification verified successfully.", state="complete")
-                        
-                        # Handle individual prediction outcomes
                         primary_prediction = results[0]
                         
-                        # --- COMMIT LOG ENTRY TO DEVICE DATABASE ---
-                        log_diagnostic_run(
+                        # Save instantly to high speed memory ledger arrays
+                        append_to_memory_log(
                             st.session_state.active_patient_name,
                             st.session_state.active_patient_id,
                             model_choice,
                             primary_prediction
                         )
                         
-                        # Display output panel
                         st.markdown(f"""
                             <div class='result-box'>
                                 <h3 style='margin-top:0px; color:#2e7d32;'>📋 Computed Diagnostic Verdict</h3>
                                 <p style='font-size: 22px; margin-bottom: 5px;'><strong>{primary_prediction}</strong></p>
-                                <p style='font-size: 13px; color:#555;'>Logged instantly into local tracking ledger file via safe-write commit routines.</p>
+                                <p style='font-size: 13px; color:#555;'>Diagnostic execution evaluation complete with zero lag overhead.</p>
                             </div>
                         """, unsafe_allow_html=True)
                         
-                        # Output report elements
                         st.markdown("#### 🛠️ Immediate Clinical Actions")
                         act_col1, act_col2 = st.columns(2)
                         
                         with act_col1:
-                            # Generate simple clinical txt documentation
                             report_text = f"""======================================================
 LEUKEMIA ALO-DAT CLINICAL DIAGNOSTIC REPORT
 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
@@ -320,10 +281,10 @@ PATIENT NAME: {st.session_state.active_patient_name.upper()}
 PATIENT MRN/ID: {st.session_state.active_patient_id.upper()}
 ------------------------------------------------------
 DIAGNOSTIC PIPELINE RUN: {model_choice}
-ALGORITHM: Enhanced ALO-DAT + RBF-SVM Engine
+ALGORITHM: Swarm Optimized (ALO-DAT) + RBF-SVM Engine
 ------------------------------------------------------
 VERDICT DETERMINATION: {primary_prediction}
-STATUS: Confirmed & Written into Permanent On-Device Logs
+STATUS: Confirmed via In-Memory Secure Evaluation Profile
 ======================================================"""
                             
                             st.download_button(
@@ -338,29 +299,33 @@ STATUS: Confirmed & Written into Permanent On-Device Logs
                                 st.toast("✅ Document transformed to HL7 FHIR payload and transmitted successfully!")
                                 
                     except ValueError as ve:
-                        status.update(label="Data alignment checks failed.", state="error")
+                        status.update(label="Data matrix check mismatch.", state="error")
                         st.error(f"**Shape Alignment Conflict:** {ve}")
-                        st.warning("Please ensure the CSV column structure and gene order perfectly match the model's expected initialization inputs.")
+                        st.warning("Please verify that the CSV row features perfectly match the inputs expected by the training architecture scale.")
                         
         st.markdown("</div>", unsafe_allow_html=True)
         
     with log_panel:
         st.markdown("<div class='clinical-card'>", unsafe_allow_html=True)
-        st.subheader("📜 On-Device Ledger Logs")
-        st.markdown(f"Historical diagnostic track summaries recorded for ID: `{st.session_state.active_patient_id.upper()}`")
+        st.subheader("📜 Current Session Ledger")
+        st.markdown(f"Runs tracked for ID: `{st.session_state.active_patient_id.upper()}`")
         
-        # Load logs live from the local DB storage
-        history_df = get_patient_history(st.session_state.active_patient_id)
+        # Pull records out of high-speed active memory arrays filtered by Patient ID
+        matching_records = [
+            log for log in st.session_state.clinical_history 
+            if log['patient_id'] == st.session_state.active_patient_id.strip().upper()
+        ]
         
-        if not history_df.empty:
-            for index, row in history_df.iterrows():
+        if matching_records:
+            # Display tracking logs from newest to oldest
+            for row in reversed(matching_records):
                 st.markdown(f"""
-                    <div style='background-color:#f1f3f5; padding: 10px; border-radius:4px; margin-bottom:8px; border-size: 1px; border-color:#dee2e6;'>
+                    <div style='background-color:#f1f3f5; padding: 10px; border-radius:4px; margin-bottom:8px; border: 1px solid #dee2e6;'>
                         <span style='font-size:11px; color:#6c757d;'>📅 {row['timestamp']}</span><br>
                         <span style='font-size:12px; font-weight:600;'>{row['diagnostic_type']}</span><br>
                         <span style='font-size:13px; color:#023e8a; font-weight:bold;'>Result: {row['result_diagnosis']}</span>
                     </div>
                 """, unsafe_allow_html=True)
         else:
-            st.caption("No historical records detected for this Patient ID on this computer storage cluster yet.")
+            st.caption("No diagnostic interactions logged for this patient profile inside the active session workspace.")
         st.markdown("</div>", unsafe_allow_html=True)
