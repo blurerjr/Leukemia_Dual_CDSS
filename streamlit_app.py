@@ -14,6 +14,58 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# --- DIAGNOSTIC KNOWLEDGE BASE ---
+SUBTYPE_INFO = {
+    # Binary Subtypes
+    "AML": {
+        "name": "Acute Myeloid Leukemia",
+        "driver": "A rapid, aggressive cancer of the myeloid lineage of blood cells. It is characterized by the overproduction of immature white blood cells (myeloblasts) in the bone marrow, which crowd out normal, healthy red blood cells, platelets, and functional white blood cells.",
+        "clinical": "Requires immediate, intensive induction chemotherapy."
+    },
+    "normal": {  # Note: lowercase 'normal' to match exact notebook label
+        "name": "Normal / Healthy Control Profile",
+        "driver": "Baseline, non-leukemic tissue or bone marrow samples. In a diagnostic environment, this acts as the negative control group showing healthy homeostatic gene expression levels.",
+        "clinical": "No leukemic intervention required. Routine monitoring if symptoms persist."
+    },
+    "Normal": { # Fallback for capitalization
+        "name": "Normal / Healthy Control Profile",
+        "driver": "Baseline, non-leukemic tissue or bone marrow samples. In a diagnostic environment, this acts as the negative control group showing healthy homeostatic gene expression levels.",
+        "clinical": "No leukemic intervention required. Routine monitoring if symptoms persist."
+    },
+    
+    # Multi-Class Subtypes
+    "B-CELL_ALL_ETV6-RUNX1": {
+        "name": "B-cell ALL with ETV6-RUNX1 Fusion",
+        "driver": "Arises from a structural chromosomal translocation, specifically t(12;21)(p13.2;q22.1), which fuses the ETV6 gene with the RUNX1 gene.",
+        "clinical": "This is one of the most common pediatric B-ALL subtypes and is highly responsive to standard chemotherapy, generally carrying a favorable long-term prognosis."
+    },
+    "B-CELL_ALL_HYPERDIP": {
+        "name": "Hyperdiploid B-cell ALL",
+        "driver": "Characterized by numerical chromosomal abnormalities where the leukemic cells contain an abnormally high number of chromosomes (typically 51 to 65 chromosomes, instead of the normal 46) without structural translocations.",
+        "clinical": "Like ETV6-RUNX1, hyperdiploidy is a common pediatric subtype linked to a highly favorable prognosis and exceptional response to standard treatment regimens."
+    },
+    "B-CELL_ALL_T-ALL": {
+        "name": "T-cell Acute Lymphoblastic Leukemia",
+        "driver": "Malignant transformation of T-cell precursors (thymocytes). In integrated datasets, it is occasionally given a generic 'B-CELL_ALL' prefix text structure, but it specifically isolates T-lineage leukemia.",
+        "clinical": "T-ALL represents an aggressive hematological malignancy. It requires distinct, intensive therapeutic protocols compared to standard B-cell ALL due to a higher risk of early central nervous system (CNS) relapse."
+    },
+    "B-CELL_ALL_TCF3-PBX1": {
+        "name": "B-cell ALL with TCF3-PBX1 Fusion",
+        "driver": "Driven by a balanced chromosomal translocation, t(1;19)(q23;p13.3), which fuses the transcription factor gene TCF3 (E2A) with the PBX1 homeobox gene.",
+        "clinical": "Historically associated with an increased risk of treatment failure and central nervous system relapse, it is treated as an intermediate-to-high risk subtype requiring intensive modern multi-agent chemotherapy."
+    },
+    "B-CELL_ALL_HYPO": {
+        "name": "Hypodiploid B-cell ALL",
+        "driver": "Characterized by a significant loss of chromosomes, leaving the leukemic cells with fewer than 45 chromosomes (often sub-categorized as near-haploid or low-hypodiploid).",
+        "clinical": "This is a rare but critical subtype to diagnose early. It carries an extremely poor prognosis, high resistance to standard chemotherapies, and frequently mandates aggressive upfront treatments, such as Allogeneic Hematopoietic Stem Cell Transplantation (HSCT)."
+    },
+    "B-CELL_ALL_MLL": {
+        "name": "B-cell ALL with MLL Rearrangement (KMT2A-rearranged)",
+        "driver": "Involves structural abnormalities and translocations at chromosome 11q23, disrupting the Mixed Lineage Leukemia (MLL) gene, now officially designated as KMT2A. Common fusion partners include AF4, ENL, and AF9.",
+        "clinical": "This subtype dominates infant leukemia (children under 1 year old). It represents a highly aggressive, high-risk malignancy associated with distinct biological features, poor clinical outcomes, and an urgent requirement for novel targeted therapies (like Menin inhibitors)."
+    }
+}
+
 # --- LIGHTWEIGHT SYSTEM MEMORY INITIALIZATION ---
 if 'clinical_history' not in st.session_state:
     st.session_state.clinical_history = []
@@ -80,11 +132,19 @@ st.markdown("""
     }
     
     .result-box {
-        background-color: #e8f5e9;
-        border-left: 5px solid #2e7d32;
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-top: 5px solid #2e7d32;
         padding: 20px;
         border-radius: 6px;
         margin-top: 15px;
+    }
+    
+    .result-title {
+        color: #2e7d32;
+        margin-top: 0px;
+        margin-bottom: 5px;
+        font-size: 24px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -116,18 +176,13 @@ def execute_inference(df, model, scaler, le, signature):
     if 'type' in df.columns:
         df = df.drop(columns=['type'])
 
-    # Log2 Normalization
     X_log2 = np.log2(df + 1)
-
-    # MinMaxScaler Scaling
     X_scaled = scaler.transform(X_log2)
     X_scaled_df = pd.DataFrame(X_scaled, columns=df.columns)
 
-    # ALO-DAT Sub-Selection Slicing
     selected_indices = signature['selected_indices']
     X_selected = X_scaled_df.iloc[:, selected_indices].values
 
-    # Predict
     predictions_encoded = model.predict(X_selected)
     predictions_decoded = le.inverse_transform(predictions_encoded)
     
@@ -232,7 +287,7 @@ else:
             raw_matrix_df = st.session_state.cached_matrix_df
                 
             if st.button("⚡ Execute Computational Diagnostics", type="primary"):
-                # Using st.spinner ensures zero drop-down accordions are generated on completion
+                # Using st.spinner to prevent UI accordion popups
                 with st.spinner("Processing genomic matrix through ALO-DAT pipelines..."):
                     try:
                         results = execute_inference(
@@ -240,22 +295,37 @@ else:
                         )
                         primary_prediction = results[0]
                         
+                        # Lookup medical context
+                        medical_context = SUBTYPE_INFO.get(
+                            primary_prediction, 
+                            {
+                                "name": "Unknown Variant", 
+                                "driver": "Insufficient registry data for this genetic signature.", 
+                                "clinical": "Further manual pathological review required."
+                            }
+                        )
+                        
                         # Save instantly to memory log
                         append_to_memory_log(
                             st.session_state.active_patient_name,
                             st.session_state.active_patient_id,
                             model_choice,
-                            primary_prediction
+                            medical_context["name"]
                         )
                         
-                        # Display output directly and automatically below button execution
                         st.success("✅ Diagnostic Matrix Calculation Completed.")
                         
+                        # Enhanced Contextual UI output
                         st.markdown(f"""
                             <div class='result-box'>
-                                <h3 style='margin-top:0px; color:#2e7d32;'>📋 Computed Diagnostic Verdict</h3>
-                                <p style='font-size: 22px; margin-bottom: 5px;'><strong>{primary_prediction}</strong></p>
-                                <p style='font-size: 13px; color:#555;'>Diagnostic execution evaluation complete with zero lag overhead.</p>
+                                <p style='margin-bottom:0px; font-weight:bold; color:#6c757d;'>DIAGNOSTIC VERDICT:</p>
+                                <h2 class='result-title'>{medical_context['name']}</h2>
+                                <p><strong>Raw Model Signature:</strong> <code>{primary_prediction}</code></p>
+                                <hr style="margin: 10px 0px; border: 0; border-top: 1px solid #dee2e6;">
+                                <p style='margin-bottom: 5px;'><strong>🔬 Genetic Driver / Description:</strong></p>
+                                <p style='color: #495057; font-size: 14px;'>{medical_context['driver']}</p>
+                                <p style='margin-bottom: 5px; margin-top:10px;'><strong>🏥 Clinical Context:</strong></p>
+                                <p style='color: #495057; font-size: 14px;'>{medical_context['clinical']}</p>
                             </div>
                         """, unsafe_allow_html=True)
                         
@@ -274,7 +344,15 @@ PATIENT MRN/ID: {st.session_state.active_patient_id.upper()}
 DIAGNOSTIC PIPELINE RUN: {model_choice}
 ALGORITHM: Swarm Optimized (ALO-DAT) + RBF-SVM Engine
 ------------------------------------------------------
-VERDICT DETERMINATION: {primary_prediction}
+VERDICT DETERMINATION: {medical_context['name']}
+RAW SIGNATURE: {primary_prediction}
+
+GENETIC DRIVER / DESCRIPTION:
+{medical_context['driver']}
+
+CLINICAL CONTEXT / PROGNOSIS:
+{medical_context['clinical']}
+
 STATUS: Confirmed via In-Memory Secure Evaluation Profile
 ======================================================"""
                             
