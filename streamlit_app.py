@@ -8,7 +8,7 @@ from datetime import datetime
 
 # --- PAGE SETUP ---
 st.set_page_config(
-    page_title="Leukemia ALO-DAT - Diagnostic Suite",
+    page_title="Leukemia Prediction System",
     page_icon="🧬",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -218,8 +218,8 @@ with st.sidebar:
             st.rerun()
 
 # --- MAIN APP HEADER ---
-st.markdown("<h1 class='main-title'>🧬 Leukemia ALO-DAT</h1>", unsafe_allow_html=True)
-st.markdown("<p class='sub-title'>High-Throughput Swarm-Optimized Gene Expression Diagnostic Architecture</p>", unsafe_allow_html=True)
+st.markdown("<h1 class='main-title'>🧬 Leukemia Prediction System</h1>", unsafe_allow_html=True)
+st.markdown("<p class='sub-title'>Binary and Multi Class Leukemia Prediction using Enhanced ALO-DAT in Gene Expression Diagnostic</p>", unsafe_allow_html=True)
 
 # --- EXPANDABLE VALIDATION BENCHMARK METRICS ---
 with st.expander("📊 View Pipeline Performance Signatures (Independent Validation Datasets)", expanded=False):
@@ -241,7 +241,7 @@ if not st.session_state.workspace_ready:
     
     col1, col2 = st.columns(2)
     with col1:
-        pt_name_input = st.text_input("Patient Full Name:", placeholder="e.g. John Doe").strip()
+        pt_name_input = st.text_input("Patient Full Name:", placeholder="e.g. Abd Basit").strip()
     with col2:
         pt_id_input = st.text_input("Unique Medical Record Number (MRN / Patient ID):", placeholder="e.g. L-2026-8843").strip()
         
