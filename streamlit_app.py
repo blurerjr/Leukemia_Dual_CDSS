@@ -14,9 +14,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- LIGHTWEIGHT SYSTEM MEMORY INITIALIZATION (NO DATABASE OVERHEAD) ---
+# --- LIGHTWEIGHT SYSTEM MEMORY INITIALIZATION ---
 if 'clinical_history' not in st.session_state:
-    # Keeps logs purely inside high-speed RAM cache memory
     st.session_state.clinical_history = []
 if 'active_patient_name' not in st.session_state:
     st.session_state.active_patient_name = ""
@@ -117,18 +116,18 @@ def execute_inference(df, model, scaler, le, signature):
     if 'type' in df.columns:
         df = df.drop(columns=['type'])
 
-    # Log2 Transmutation Matrix Transformation
+    # Log2 Normalization
     X_log2 = np.log2(df + 1)
 
-    # Global Continuous Value Sizing Matrix Scaling
+    # MinMaxScaler Scaling
     X_scaled = scaler.transform(X_log2)
     X_scaled_df = pd.DataFrame(X_scaled, columns=df.columns)
 
-    # ALO-DAT Sub-Selection Array Slicing
+    # ALO-DAT Sub-Selection Slicing
     selected_indices = signature['selected_indices']
     X_selected = X_scaled_df.iloc[:, selected_indices].values
 
-    # Output Decision Matrix Scoring
+    # Predict
     predictions_encoded = model.predict(X_selected)
     predictions_decoded = le.inverse_transform(predictions_encoded)
     
@@ -201,7 +200,7 @@ if not st.session_state.workspace_ready:
             st.warning("🚨 Operational Failure: Both Patient Full Name and Unique Patient ID are strictly mandatory for patient verification.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# --- WORKFLOW STEP 2 & 3: APPLICATION OF COMPENSATORY PIPELINE ---
+# --- WORKFLOW STEP 2 & 3: COMPUTATIONAL PIPELINE ---
 else:
     main_panel, log_panel = st.columns([2, 1])
     
@@ -222,26 +221,22 @@ else:
         uploaded_matrix = st.file_uploader("Select Target Expression Profile File", type=["csv"])
         
         if uploaded_matrix is not None:
-            # --- HIGH-SPEED INGESTION CACHE OPTIMIZATION ---
-            # Construct a fast digital footprint check of the uploaded file metadata
+            # --- HIGH-SPEED INGESTION CACHE ---
             current_sig = f"{uploaded_matrix.name}_{uploaded_matrix.size}"
             
             if st.session_state.cached_file_signature != current_sig:
-                with st.spinner("⚡ High-Speed RAM Optimizer: parsing expression matrix data strings once..."):
+                with st.spinner("⚡ High-Speed RAM Optimizer: parsing expression matrix..."):
                     st.session_state.cached_matrix_df = pd.read_csv(uploaded_matrix)
                     st.session_state.cached_file_signature = current_sig
             
             raw_matrix_df = st.session_state.cached_matrix_df
             
-            with st.expander("🔬 View Upload Dimensions and Mapping Matrix Preview"):
-                st.dataframe(raw_matrix_df.head(3))
-                st.caption(f"Matrix features mapped size: {raw_matrix_df.shape[0]} samples x {raw_matrix_df.shape[1]} features.")
+            # (Preview Matrix block successfully removed for high performance)
                 
             if st.button("⚡ Execute Computational Diagnostics", type="primary"):
                 with st.status("Executing inference pipelines over mathematical parameters...", expanded=True) as status:
                     try:
                         status.update(label="Executing Log2 data transformations...", state="running")
-                        # Evaluation runs over memory arrays instantly
                         results = execute_inference(
                             raw_matrix_df, svm_model, minmax_scaler, label_encoder, gene_signature
                         )
@@ -252,7 +247,7 @@ else:
                         
                         primary_prediction = results[0]
                         
-                        # Save instantly to high speed memory ledger arrays
+                        # Save instantly to memory log
                         append_to_memory_log(
                             st.session_state.active_patient_name,
                             st.session_state.active_patient_id,
@@ -310,14 +305,12 @@ STATUS: Confirmed via In-Memory Secure Evaluation Profile
         st.subheader("📜 Current Session Ledger")
         st.markdown(f"Runs tracked for ID: `{st.session_state.active_patient_id.upper()}`")
         
-        # Pull records out of high-speed active memory arrays filtered by Patient ID
         matching_records = [
             log for log in st.session_state.clinical_history 
             if log['patient_id'] == st.session_state.active_patient_id.strip().upper()
         ]
         
         if matching_records:
-            # Display tracking logs from newest to oldest
             for row in reversed(matching_records):
                 st.markdown(f"""
                     <div style='background-color:#f1f3f5; padding: 10px; border-radius:4px; margin-bottom:8px; border: 1px solid #dee2e6;'>
