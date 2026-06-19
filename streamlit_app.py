@@ -230,21 +230,14 @@ else:
                     st.session_state.cached_file_signature = current_sig
             
             raw_matrix_df = st.session_state.cached_matrix_df
-            
-            # (Preview Matrix block successfully removed for high performance)
                 
             if st.button("⚡ Execute Computational Diagnostics", type="primary"):
-                with st.status("Executing inference pipelines over mathematical parameters...", expanded=True) as status:
+                # Using st.spinner ensures zero drop-down accordions are generated on completion
+                with st.spinner("Processing genomic matrix through ALO-DAT pipelines..."):
                     try:
-                        status.update(label="Executing Log2 data transformations...", state="running")
                         results = execute_inference(
                             raw_matrix_df, svm_model, minmax_scaler, label_encoder, gene_signature
                         )
-                        
-                        status.update(label="Applying model normalizations & slicing sub-selections...", state="running")
-                        status.update(label="Resolving prediction arrays across decision boundaries...", state="running")
-                        status.update(label="Diagnostic matrix calculation completed.", state="complete")
-                        
                         primary_prediction = results[0]
                         
                         # Save instantly to memory log
@@ -254,6 +247,9 @@ else:
                             model_choice,
                             primary_prediction
                         )
+                        
+                        # Display output directly and automatically below button execution
+                        st.success("✅ Diagnostic Matrix Calculation Completed.")
                         
                         st.markdown(f"""
                             <div class='result-box'>
@@ -294,7 +290,6 @@ STATUS: Confirmed via In-Memory Secure Evaluation Profile
                                 st.toast("✅ Document transformed to HL7 FHIR payload and transmitted successfully!")
                                 
                     except ValueError as ve:
-                        status.update(label="Data matrix check mismatch.", state="error")
                         st.error(f"**Shape Alignment Conflict:** {ve}")
                         st.warning("Please verify that the CSV row features perfectly match the inputs expected by the training architecture scale.")
                         
